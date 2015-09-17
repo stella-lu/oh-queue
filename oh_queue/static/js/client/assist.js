@@ -101,4 +101,7 @@ $(document).ready(function(){
     addNotes();
   });
 
+  // Dynamically rendering web page
+  $('#now-date').text((new Date()).toDateString())
+
 });
