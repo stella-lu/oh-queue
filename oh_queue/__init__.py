@@ -6,7 +6,8 @@ logging.basicConfig(level=logging.INFO)
 from flask import Flask, request
 from flask_socketio import SocketIO
 
-from oh_queue import assets, auth
+from oh_queue import assets
+from oh_queue.controllers import auth, stats
 from oh_queue.models import db, TicketStatus
 from raven.contrib.flask import Sentry
 
@@ -26,6 +27,7 @@ app.jinja_env.globals.update({
 
 db.init_app(app)
 auth.init_app(app)
+stats.init_app(app)
 socketio = SocketIO(app)
 
 # Import views

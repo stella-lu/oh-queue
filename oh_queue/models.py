@@ -81,7 +81,7 @@ class Ticket(db.Model):
         """
         if status is None:
             status = [TicketStatus.pending, TicketStatus.assigned]
-        return cls.query.filter(
+        return cls. query.filter(
            cls.status.in_(status)
         ).order_by(cls.created).all()
 

@@ -1,6 +1,7 @@
 *.swp
 
 *.db
+.DS_Store
 node_modules/
 
 # Byte-compiled / optimized / DLL files
