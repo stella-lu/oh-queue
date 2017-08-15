@@ -14,6 +14,27 @@ let Ticket = ({state, ticket}) => {
   if (isStaff(state) || ticketIsMine(state, ticket)) {
     description = ticket.description;
   }
+  
+  var dateDisplay, timeDisplay;
+  if (ticket.status === 'appointment') {
+    var startTime = moment.utc(ticket.appointmentStartTime);
+    dateDisplay = startTime.local().format('ddd M/D');
+    timeDisplay = startTime.local().format('h:mm A');
+  }
+  
+  if (ticket.status === 'appointment') {
+    return (
+      <TicketLink state={state} ticket={ticket}>
+        <h4 className="pull-left">&nbsp;&nbsp;
+           {isStaff(state) && <span>Appointment with {ticket.user.name} at {timeDisplay} on {dateDisplay} in {ticket.location}</span>}
+           {!isStaff(state) && <span>Appointment at {timeDisplay} on {dateDisplay} in {ticket.location}</span>}
+          <br className="visible-xs" />
+          <small className="visible-xs ticket-desc-xs">{description}</small>
+        </h4>
+        <h4 className="pull-left hidden-xs ticket-desc-md "><small>{description}</small></h4>
+      </TicketLink>
+    )
+  }
 
   return (
     <TicketLink state={state} ticket={ticket}>

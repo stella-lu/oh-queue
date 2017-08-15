@@ -15,7 +15,11 @@ class TicketButtons extends React.Component {
   }
 
   delete() {
-    if (!confirm("Delete this ticket?")) return;
+    var msg = "Delete this ticket?";
+    if (this.props.ticket.status === 'appointment') {
+      msg = "Cancel this appointment? Your credits will not be refunded.";
+    }
+    if (!confirm(msg)) return;
     app.makeRequest('delete', [this.props.ticket.id]);
   }
 
@@ -67,9 +71,12 @@ class TicketButtons extends React.Component {
 
     if (ticket.status === 'pending') {
       bottomButtons.push(makeButton('Delete', 'danger', this.delete));
-      if (staff) {
-        topButtons.push(makeButton('Help', 'primary', this.assign));
-      }
+    }
+    if (ticket.status === 'appointment') {
+      bottomButtons.push(makeButton('Cancel Appointment', 'danger', this.delete));
+    }
+    if (staff && (ticket.status === 'pending' || ticket.status === 'appointment')) {
+      topButtons.push(makeButton('Help', 'primary', this.assign));
     }
     if (ticket.status === 'assigned') {
       bottomButtons.push(makeButton('Resolve', 'default', this.resolve));

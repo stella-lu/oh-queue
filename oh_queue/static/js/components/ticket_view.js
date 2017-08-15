@@ -24,6 +24,12 @@ class TicketView extends React.Component {
     if (!isStaff(state) && !ticketIsMine(state, ticket)) {
       return <NotFound/>;
     }
+    var dateDisplay, timeDisplay;
+    if (ticket.status === 'appointment') {
+      var startTime = moment.utc(ticket.appointmentStartTime);
+      dateDisplay = startTime.local().format('ddd M/D');
+      timeDisplay = startTime.local().format('h:mm A');
+    }
 
     return (
       <div className="container">
@@ -32,7 +38,10 @@ class TicketView extends React.Component {
           <div className="col-xs-12">
             <h2 className="ticket-view-name text-center">
               { (ticket.status === 'pending' && isStaff(state)) ? 'Help to View Name' : ticket.user.name }
-              <small className="clearfix">{ ticket.assignment } Q{ ticket.question } &middot; { ticket.location } </small>
+              { ticket.status !== 'appointment' ?
+               <small className="clearfix">{ ticket.assignment } Q{ ticket.question } &middot; { ticket.location } </small>
+               :<small className="clearfix"> {dateDisplay} at {timeDisplay} in {ticket.location}</small>
+              }
             </h2>
              <p className="ticket-view-text text-center"> { ticketStatus(state, ticket) } </p>
           </div>

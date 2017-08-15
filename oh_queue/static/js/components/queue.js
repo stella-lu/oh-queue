@@ -28,6 +28,10 @@ let Queue = ({state}) => {
           <Tab label={`Assigned (${assignedTickets.length})`} shouldHighlight={shouldHighlightAssigned}>
             <TicketList status={'assigned'} state={state} />
           </Tab>
+          <Tab label={`Appointments`}>
+             {isStaff(state) && <TicketList status={'appointment'} state={state}/>}
+             {!isStaff(state) && <AppointmentList state={state}/>}
+          </Tab>
         </Tabs>
       </div>
     </div>
@@ -41,7 +45,13 @@ let TicketList = ({state, status}) => {
     <Ticket key={ticket.id} state={state} ticket={ticket}/>
   );
   var body;
-  if (tickets.length === 0) {
+  if (tickets.length === 0 && status === 'appointment') {
+    body = (
+      <div className="no-results">
+        <h4>No confirmed appointments</h4>
+      </div>
+    );
+  } else if (tickets.length === 0) {
     body = (
       <div className="no-results">
         <h4>No help requests</h4>
@@ -66,3 +76,27 @@ let TicketList = ({state, status}) => {
     </div>
   );
 };
+
+let AppointmentList = ({state}) => {
+  let tickets = getTickets(state, 'appointment');
+  let mine = tickets.filter((ticket) => ticketIsMine(state, ticket));
+  let items = mine.map((ticket) =>
+    <Ticket key={ticket.id} state={state} ticket={ticket}/>
+  );
+  let slots = state.appointments.map((appointment) =>
+    <AppointmentSlot state={state} appointment={appointment}/>
+  );
+  return (
+    <div className="queue">
+      { state.currentUser != null &&
+        <div className='ticket-row'>
+        <center><i>
+          You have {state.currentUser.creditBalance} credits available
+        </i></center>
+        </div>
+      }
+      {items}
+      {slots}
+    </div>
+  )
+}

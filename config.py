@@ -27,3 +27,9 @@ OK_SERVER_URL = os.getenv('OK_DEPLOYMENT', 'https://okpy.org')
 
 COURSE_OFFERING = os.getenv('COURSE_OFFERING', 'ok/test/su16')
 COURSE_NAME = os.getenv('COURSE_NAME', 'OK')
+
+
+GOOGLE_CALENDAR_ID = 'berkeley.edu_nkbhm5av5g714be1tgpg0t6bes@group.calendar.google.com'
+# This account should have write access to the calendar.
+with open('service-account.json', 'r') as f:
+    GAPI_SERVICE_ACCOUNT_JSON = json.loads(f.read())

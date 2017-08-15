@@ -1,4 +1,5 @@
 import datetime
+import dateutil.parser
 import functools
 import collections
 import pytz
@@ -7,7 +8,7 @@ from flask import render_template, url_for
 from flask_login import current_user
 from flask_socketio import emit
 
-from oh_queue import app, db, socketio
+from oh_queue import app, calendar, db, socketio
 from oh_queue.models import Ticket, TicketStatus, TicketEvent, TicketEventType
 
 def user_json(user):
@@ -17,6 +18,7 @@ def user_json(user):
         'name': user.name,
         'shortName': user.short_name,
         'isStaff': user.is_staff,
+        'creditBalance': user.credit_balance,
     }
 
 def student_json(user):
@@ -38,6 +40,9 @@ def ticket_json(ticket):
         'description': ticket.description,
         'question': ticket.question,
         'helper': ticket.helper and user_json(ticket.helper),
+        'calendarEvent': ticket.calendar_event,
+        'appointmentStartTime': ticket.appointment_start_time and \
+            ticket.appointment_start_time.isoformat(),
     }
 
 def emit_event(ticket, event_type):
@@ -108,10 +113,13 @@ def connect():
         user_presence['students'].add(current_user.email)
 
     tickets = Ticket.query.filter(
-        Ticket.status.in_([TicketStatus.pending, TicketStatus.assigned])
+        Ticket.status.in_([TicketStatus.pending,
+                           TicketStatus.assigned,
+                           TicketStatus.appointment])
     ).all()
     emit('state', {
         'tickets': [ticket_json(ticket) for ticket in tickets],
+        'appointments': appointments(),
         'currentUser':
             user_json(current_user) if current_user.is_authenticated else None,
     })
@@ -134,6 +142,7 @@ def refresh(ticket_ids):
     tickets = Ticket.query.filter(Ticket.id.in_(ticket_ids)).all()
     return {
         'tickets': [ticket_json(ticket) for ticket in tickets],
+        'appointments': appointments()
     }
 
 @socketio.on('create')
@@ -200,6 +209,8 @@ def delete(ticket_ids):
     for ticket in tickets:
         if not (current_user.is_staff or ticket.user.id == current_user.id):
             return socket_unauthorized()
+        if ticket.status == TicketStatus.appointment:
+            reopen_appointment(ticket.calendar_event)
         ticket.status = TicketStatus.deleted
         emit_event(ticket, TicketEventType.delete)
     db.session.commit()
@@ -252,4 +263,104 @@ def describe(description):
 
     db.session.commit()
 
+"""@socketio.on('make_appointment_slot')
+@is_staff # TODO: This should not be accessible to lab assistants.
+def make_appointment_slot():
+    ""Creates a new appointment slot with the specified properties.
+    ""
+    pass"""
 
+@socketio.on('appointments')
+def appointments():
+    """Returns a JSON blob of all available appointments.
+    """
+    response = calendar.service.events().list(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        orderBy='startTime',
+        timeMin=datetime.datetime.now().isoformat('T') + 'Z',
+        singleEvents=True,
+    ).execute()
+    events = []
+    for event in response['items']:
+        if event['summary'] == '#appointment':
+            events.append(calendar.event_json(event))
+    return events
+    
+def reopen_appointment(calendar_event_id):
+    event = calendar.service.events().get(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        eventId=calendar_event_id).execute()
+    if not event:
+        return
+    # Remove the student, notifying them via email
+    event['attendees'] = []
+    calendar.service.events().patch(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        eventId=calendar_event_id,
+        body=event,
+        sendNotifications=True).execute()
+    # Reset the event to be claimable by others
+    event['summary'] = '#appointment'
+    event['visibility'] = 'public'
+    calendar.service.events().patch(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        eventId=calendar_event_id,
+        body=event,
+        sendNotifications=False).execute()
+
+@socketio.on('claim_appointment')
+@app.route('/claim/<calendar_event_id>/')
+@logged_in
+def claim_appointment(calendar_event_id):
+    """Claims an appointment for the current student and makes a ticket for it.
+    """
+    # Check that the event exists and is unclaimed
+    event = calendar.service.events().get(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        eventId=calendar_event_id).execute()
+    if not event:
+        return socket_error('Appointment does not exist', category='warning')
+    
+    if event['summary'] != '#appointment':
+        return socket_error('Appointment has already been claimed',
+                            category='warning')
+    
+    cost = calendar.find_cost(event['description'])
+    
+    if current_user.credit_balance < cost:
+        return socket_error('Insufficient credit balance', category='warning')
+    
+    event['summary'] = app.config.get('COURSE_NAME') + ' Appointment'
+    if ('attendees' not in event):
+        event['attendees'] = []
+    event['attendees'].append({
+        'displayName': current_user.name,
+        'email': current_user.email,
+    })
+    event['visibility'] = 'private'
+    calendar.service.events().patch(
+        calendarId=app.config.get('GOOGLE_CALENDAR_ID'),
+        eventId=calendar_event_id,
+        body=event,
+        sendNotifications=True).execute()
+    
+    current_user.credit_balance -= cost
+    
+    start_time = dateutil.parser.parse(event['start']['dateTime'])
+    start_time -= start_time.utcoffset()
+    ticket = Ticket(
+        status=TicketStatus.appointment,
+        user=current_user,
+        assignment="Appointment",
+        question="Appointment",
+        location=event['location'],
+        calendar_event = calendar_event_id,
+        appointment_start_time=start_time
+    )
+
+    db.session.add(ticket)
+    db.session.commit()
+
+    emit_event(ticket, TicketEventType.create)
+    return socket_redirect(ticket_id=ticket.id)
+    

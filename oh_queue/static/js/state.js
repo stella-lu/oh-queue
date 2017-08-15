@@ -11,11 +11,12 @@ type User = {
   name: string,
   shortName: string,
   isStaff: boolean,
+  creditBalance: number,
 };
 
 type Ticket = {
   id: number,
-  status: 'pending' | 'assigned' | 'resolved' | 'deleted',
+  status: 'pending' | 'assigned' | 'resolved' | 'deleted' | 'appointment',
   user: User,
   created: string,  // ISO 8601 datetime string
   location: string,
@@ -23,7 +24,17 @@ type Ticket = {
   question: string,
   description: ?string,
   helper: ?User,
+  calendarEvent: ?string,
+  appointmentStartTime: ?string, // ISO 8601 datetime string
 };
+
+type AppointmentSlot = {
+  eventId: string,
+  startTime: string, // ISO 8601 datetime string,
+  endTime: string, // ISO 8601 datetime string,
+  cost: number,
+  location: string,
+}
 
 type Filter = {
   /* Selected options. null means do not filter by an attribute. */
@@ -55,6 +66,8 @@ type State = {
   loadingTickets: Set<number>,
   /* Current ticket filter. */
   filter: Filter,
+  /* Available appointment slots */
+  appointments: Array<AppointmentSlot>,
   /* Selected queue tab. */
   queueTabIndex: number,
   /* Flashed messages. */
@@ -97,7 +110,6 @@ function isActive(ticket: Ticket): boolean {
   return ticket.status === 'pending' || ticket.status === 'assigned';
 }
 
-
 function ticketStatus(state: State, ticket: Ticket): string {
   if (ticket.status === 'assigned' && ticket.helper) {
     return 'Being helped by ' + (isTicketHelper(state, ticket) ? 'you' : ticket.helper.name);
@@ -105,6 +117,8 @@ function ticketStatus(state: State, ticket: Ticket): string {
     return 'Resolved by ' + ticket.helper.name;
   } else if (ticket.status === 'deleted') {
     return 'Deleted';
+  } else if (ticket.status === 'appointment') {
+    return 'Appointment'
   } else {
     return 'Queued';
   }

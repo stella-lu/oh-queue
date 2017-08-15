@@ -47,6 +47,7 @@ class App extends React.Component {
     for (var ticket of data.tickets) {
       setTicket(this.state, ticket);
     }
+    this.state.appointments = data.appointments;
     this.refresh();
   }
 
@@ -66,7 +67,7 @@ class App extends React.Component {
   }
 
   shouldNotify(ticket, type) {
-    return (isStaff(this.state) && type === 'create');
+    return (isStaff(this.state) && type === 'create' && ticket.state !== 'appointment');
   }
 
   updateTicket(data) {
@@ -140,4 +141,3 @@ class App extends React.Component {
     );
   }
 }
-

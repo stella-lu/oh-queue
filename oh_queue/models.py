@@ -34,6 +34,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), nullable=False, index=True)
     name = db.Column(db.String(255), nullable=False)
     is_staff = db.Column(db.Boolean, default=False)
+    credit_balance = db.Column(db.Integer, default=0)
 
     @property
     def short_name(self):
@@ -42,11 +43,12 @@ class User(db.Model, UserMixin):
             return first_name.rsplit('@')[0]
         return first_name
 
-TicketStatus = enum.Enum('TicketStatus', 'pending assigned resolved deleted')
+TicketStatus = enum.Enum('TicketStatus',
+    'pending assigned resolved deleted appointment')
 
 class Ticket(db.Model):
-    """Represents an ticket in the queue. A student submits a ticket and receives
-    help from a staff member.
+    """Represents an ticket in the queue. A student submits a ticket and
+    receives help from a staff member.
     """
     __tablename__ = 'ticket'
     id = db.Column(db.Integer, primary_key=True)
@@ -62,6 +64,11 @@ class Ticket(db.Model):
     description = db.Column(db.Text)
 
     helper_id = db.Column(db.ForeignKey('user.id'), index=True)
+    
+    # Only set for appointments
+    appointment_start_time = db.Column(db.DateTime, index=True)
+    # Google Calendar Event ID for appointment tickets
+    calendar_event = db.Column(db.String(255))
 
     user = db.relationship(User, foreign_keys=[user_id])
     helper = db.relationship(User, foreign_keys=[helper_id])
@@ -101,3 +108,5 @@ class TicketEvent(db.Model):
 
     ticket = db.relationship(Ticket)
     user = db.relationship(User)
+    
+    
