@@ -23,8 +23,8 @@ This app uses [Ok](https://okpy.org) to manage access. Even if you aren't using 
 
 2. Create and activate a virtualenv:
     ```
-        python3 -m virtualenv env  (If this does not work, try: `virtualenv -p python3 env`)
-        source env/bin/activate
+    python3 -m virtualenv env  (If this does not work, try: `virtualenv -p python3 env`)
+    source env/bin/activate
     ```
 
 3. Use pip to install all the dependencies:
